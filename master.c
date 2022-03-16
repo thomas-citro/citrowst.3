@@ -20,6 +20,8 @@
 
 /* Global variables */
 pid_t children[MAX_PROCS];
+int semid;
+int semCreated;
 int nprocs;
 int ss;
 int shmAllocated;
@@ -35,11 +37,18 @@ struct shmseg {
 	int choosing[MAX_PROCS];
 };
 
+union semun {
+	int val;
+	struct semid_ds *buf;
+	ushort array[1];
+} sem_attr;
+
 
 /* Function Prototypes */
 int isANumber(char*);
 char *getOutputPerror();
 int deallocateSharedMemory();
+void removeSemaphores();
 void endProgramHandler(int, int);
 void childTermHandler(int);
 void ctrlCHandler(int);
@@ -54,15 +63,9 @@ int main (int argc, char *argv[]) {
 	signal(SIGINT, ctrlCHandler);
 	signal(SIGCHLD, childTermHandler);
 	
-	/* For semaphore */
-	union semun {
-		int val;
-		struct semid_ds *buf;
-		ushort array[1];
-	} sem_attr;
-	
 	/* Initialize variables */
 	programName = argv[0];
+	semCreated = 0;
 	shmAllocated = 0;
 	activeProcesses = 0;
 	ss = 100;
@@ -148,13 +151,13 @@ int main (int argc, char *argv[]) {
 	FILE *fp = fopen("ftokFile", "ab+"); /* creates file if it doesn't exist */
 	fclose(fp);
 	
-	/* Initialize semaphore */
+	/* Create/initialize semaphore */
 	key_t key;
-	int semid;
 	key = ftok("ftokFile", 'E');
 	semid = semget(key, 1, 0666 | IPC_CREAT);
 	sem_attr.val = 1; /* unlocked */
 	semctl(semid, 0, SETVAL, sem_attr);
+	semCreated = 1;
 	
 	/* Fork off child processes */
 	pid_t childpid = 0;
@@ -229,7 +232,11 @@ int deallocateSharedMemory() {
 		perror(output);
 		exit(1);
 	}
-
+	
+	if (semCreated) {
+		removeSemaphores();
+	}
+	
 	return 0;
 }
 
@@ -303,4 +310,12 @@ void logTermination(char *method) {
 		exit(0);
 	}
 	fprintf(fptr, "%d:%d:%d Program ended. Termination method: %s\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, method);
-}	
+}
+
+/* Removes semaphore */
+void removeSemaphores() {
+	if (semctl(semid, 0, IPC_RMID, sem_attr) == -1) {
+		char *output = getOutputPerror();
+		perror(output);
+	}
+}
