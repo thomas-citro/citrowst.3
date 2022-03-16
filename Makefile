@@ -18,3 +18,4 @@ clean:
 	rm -f $(EXEC)
 	rm -f $(LOGS)
 	rm -f cstest
+	rm -f ftokFile

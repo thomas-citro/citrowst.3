@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <sys/sem.h>
 #include <time.h>
 #include "config.h"
 
@@ -52,6 +53,13 @@ int main (int argc, char *argv[]) {
 	/* Setup signals/interrupts */
 	signal(SIGINT, ctrlCHandler);
 	signal(SIGCHLD, childTermHandler);
+	
+	/* For semaphore */
+	union semun {
+		int val;
+		struct semid_ds *buf;
+		ushort array[1];
+	} sem_attr;
 	
 	/* Initialize variables */
 	programName = argv[0];
@@ -135,6 +143,18 @@ int main (int argc, char *argv[]) {
                 shmp->tickets[i] = 0;
                 shmp->choosing[i] = 0;
         }
+	
+	/* Create file for ftok */
+	FILE *fp = fopen("ftokFile", "ab+"); /* creates file if it doesn't exist */
+	fclose(fp);
+	
+	/* Initialize semaphore */
+	key_t key;
+	int semid;
+	key = ftok("ftokFile", 'E');
+	semid = semget(key, 1, 0666 | IPC_CREAT);
+	sem_attr.val = 1; /* unlocked */
+	semctl(semid, 0, SETVAL, sem_attr);
 	
 	/* Fork off child processes */
 	pid_t childpid = 0;
