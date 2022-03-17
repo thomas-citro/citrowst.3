@@ -7,6 +7,9 @@
 #include <string.h>
 #include <time.h>
 #include <sys/shm.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 #include "config.h"
 
 
@@ -30,6 +33,7 @@ int main (int argc, char *argv[]) {
 	/* Parse arguments */
 	int procNumber = atoi(argv[1]) + 1;
 	int shmid = atoi(argv[2]);
+	int semid = atoi(argv[3]);
 	
 	/* Variables/startup functions for random number generator */
 	int randomNum;
@@ -51,12 +55,18 @@ int main (int argc, char *argv[]) {
 	char logfile[10] = "logfile.";
 	strcat(logfile, intToString);
 	
+	/* For semaphore */
+	struct sembuf sb = {0, -1, 0};
 	
 	/* Bakery's algorithm implementation */
 	int i = 0;
 	for (i = 0; i < 5; i++) {
 		logMessage("Requested to join critical section by process number: ", procNumber, logfile);
-		lock(procNumber - 1); /* Enter critical section */
+		if (semop(semid, &sb, 1) == -1) { /* Lock */
+			char *output = getOutputPerror(argv[0]);
+			perror(output);
+			exit(1);
+		}
 		logMessage("Entered critical section by process number: ", procNumber, logfile);
 		randomNum = (rand() % (randUpper - randLower + 1)) + randLower; /* Random number from randLower to randUpper */
 		sleep(randomNum);
@@ -65,7 +75,12 @@ int main (int argc, char *argv[]) {
 		randomNum = (rand() % (randUpper - randLower + 1)) + randLower; /* Random number from randLower to randUpper */
 		sleep(randomNum);
 		logMessage("Exited critical section by process number: ", procNumber, logfile);
-		unlock(procNumber - 1); /* Exit critical section */
+		sb.sem_op = 1;
+		if (semop(semid, &sb, 1) == -1) {
+			char *output = getOutputPerror(argv[0]);
+			perror(output);
+			exit(1);
+		}
 	}
 	
 	

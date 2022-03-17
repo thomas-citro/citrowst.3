@@ -172,7 +172,9 @@ int main (int argc, char *argv[]) {
 			sprintf(strProcNum, "%d", i);
 			char strShmid[100];
 			sprintf(strShmid, "%d", shmid);
-			char *args[] = {"./slave", strProcNum, strShmid, (char*)0};
+			char strSemid[100];
+			sprintf(strSemid, "%d", semid);
+			char *args[] = {"./slave", strProcNum, strShmid, strSemid, (char*)0};
 			execvp("./slave", args);
 			
 			char *output = getOutputPerror();
