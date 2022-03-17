@@ -55,12 +55,10 @@ int main (int argc, char *argv[]) {
 	char logfile[10] = "logfile.";
 	strcat(logfile, intToString);
 	
-	/* For semaphore */
-	struct sembuf sb = {0, -1, 0};
-	
-	/* Bakery's algorithm implementation */
+	/* Semaphore implementation of critical section */
 	int i = 0;
 	for (i = 0; i < 5; i++) {
+		struct sembuf sb = {0, -1, 0};
 		logMessage("Requested to join critical section by process number: ", procNumber, logfile);
 		if (semop(semid, &sb, 1) == -1) { /* Lock */
 			char *output = getOutputPerror(argv[0]);
